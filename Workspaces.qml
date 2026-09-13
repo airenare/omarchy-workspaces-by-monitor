@@ -221,6 +221,7 @@ BarWidget {
       editGroupsModel.append({ monitor: String(g.monitor || ""), idsText: root.idsToText(g.ids), colorKey: String(g.colorKey || "") })
     }
     root.settingsOpen = true
+    root.bumpEditGroupsVersion()
   }
 
   function closeSettings() {
@@ -266,14 +267,17 @@ BarWidget {
 
   function addEditGroup() {
     editGroupsModel.append({ monitor: root.firstUnusedScreenName(), idsText: "", colorKey: "" })
+    root.bumpEditGroupsVersion()
   }
 
   function removeEditGroup(index) {
     editGroupsModel.remove(index)
+    root.bumpEditGroupsVersion()
   }
 
   function saveSettings() {
     if (!root.bar || !root.bar.shell) return
+    if (root.hasDuplicateWorkspaces) return
     var groupsOut = []
     for (var i = 0; i < editGroupsModel.count; i++) {
       var g = editGroupsModel.get(i)
@@ -283,6 +287,54 @@ BarWidget {
     root.bar.shell.updateEntryInline(root.settingsId, { groups: groupsOut })
     root.syncHyprlandPins(groupsOut)
     root.closeSettings()
+  }
+
+  // ------------------------------------------------ duplicate-id validation
+  //
+  // Two monitors both claiming workspace N is a real misconfiguration (only
+  // one monitor can actually own a workspace in Hyprland), so it's caught
+  // and blocked here rather than silently saved. ListModel row edits
+  // (setProperty/append/remove) don't make ordinary property bindings
+  // reactive the way a plain `property var` array would — editGroupsVersion
+  // is bumped on every edit so the bindings below (which read it purely to
+  // establish that dependency) re-evaluate against fresh ListModel data.
+  property int editGroupsVersion: 0
+  function bumpEditGroupsVersion() { root.editGroupsVersion++ }
+
+  function editGroupsSnapshot() {
+    var snapshot = []
+    for (var i = 0; i < editGroupsModel.count; i++) {
+      var g = editGroupsModel.get(i)
+      snapshot.push({ monitor: g.monitor, ids: root.parseIdsText(g.idsText) })
+    }
+    return snapshot
+  }
+
+  readonly property var duplicateWorkspaceIds: {
+    root.editGroupsVersion // dependency only
+    var snapshot = root.editGroupsSnapshot()
+    var counts = {}
+    for (var i = 0; i < snapshot.length; i++) {
+      var ids = root.resolveIdsAgainst(snapshot, snapshot[i])
+      for (var j = 0; j < ids.length; j++) counts[ids[j]] = (counts[ids[j]] || 0) + 1
+    }
+    var dupes = []
+    for (var id in counts) if (counts[id] > 1) dupes.push(parseInt(id, 10))
+    dupes.sort(function(a, b) { return a - b })
+    return dupes
+  }
+
+  readonly property bool hasDuplicateWorkspaces: root.duplicateWorkspaceIds.length > 0
+
+  function rowHasDuplicateWorkspace(index) {
+    root.editGroupsVersion // dependency only
+    if (index < 0 || index >= editGroupsModel.count) return false
+    var g = editGroupsModel.get(index)
+    var snapshot = root.editGroupsSnapshot()
+    var ids = root.resolveIdsAgainst(snapshot, { monitor: g.monitor, ids: root.parseIdsText(g.idsText) })
+    var dupes = root.duplicateWorkspaceIds
+    for (var i = 0; i < ids.length; i++) if (dupes.indexOf(ids[i]) !== -1) return true
+    return false
   }
 
   // ---------------------------------------------------- Hyprland pin sync
@@ -574,15 +626,38 @@ BarWidget {
                   if (row.monitor && !seen[row.monitor]) opts.push(row.monitor)
                   return opts
                 }
-                onChanged: function(value) { editGroupsModel.setProperty(row.index, "monitor", value) }
+                onChanged: function(value) {
+                  editGroupsModel.setProperty(row.index, "monitor", value)
+                  root.bumpEditGroupsVersion()
+                }
               }
 
-              TextField {
-                id: idsField
+              Item {
+                id: idsFieldSlot
                 width: Style.space(100)
-                placeholderText: "1-5 or *"
-                text: row.idsText
-                onTextEdited: editGroupsModel.setProperty(row.index, "idsText", text)
+                height: idsField.height
+
+                TextField {
+                  id: idsField
+                  anchors.fill: parent
+                  placeholderText: "1-5 or *"
+                  text: row.idsText
+                  onTextEdited: {
+                    editGroupsModel.setProperty(row.index, "idsText", text)
+                    root.bumpEditGroupsVersion()
+                  }
+                }
+
+                // Same duplicate-workspace check as the warning text below,
+                // localized to the field actually responsible for it.
+                Rectangle {
+                  anchors.fill: parent
+                  visible: root.rowHasDuplicateWorkspace(row.index)
+                  color: "transparent"
+                  radius: Style.cornerRadius
+                  border.width: 2
+                  border.color: Color.urgent
+                }
               }
 
               Button {
@@ -645,6 +720,19 @@ BarWidget {
           }
         }
 
+        Text {
+          visible: root.hasDuplicateWorkspaces
+          width: parent.width
+          wrapMode: Text.WordWrap
+          color: Color.urgent
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          text: (root.duplicateWorkspaceIds.length === 1
+            ? "Workspace " + root.duplicateWorkspaceIds[0] + " is"
+            : "Workspaces " + root.duplicateWorkspaceIds.join(", ") + " are")
+            + " assigned to more than one monitor. Fix the highlighted field before saving."
+        }
+
         Row {
           spacing: Style.space(8)
 
@@ -663,6 +751,8 @@ BarWidget {
             foreground: root.bar ? root.bar.barForeground : Color.foreground
             horizontalPadding: 8
             verticalPadding: 4
+            opacity: root.hasDuplicateWorkspaces ? 0.4 : 1.0
+            tooltipText: root.hasDuplicateWorkspaces ? "Resolve duplicate workspace assignments first" : ""
             onClicked: root.saveSettings()
           }
 
