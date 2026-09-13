@@ -227,6 +227,20 @@ BarWidget {
     root.settingsOpen = false
   }
 
+  // PopupCard's own close() falls back to imperatively setting its *own*
+  // `open` property when its `owner` (root, here) has no `close` method —
+  // and assigning a value to a property that has a declarative binding
+  // (our `open: root.settingsOpen` below) permanently severs that binding.
+  // Once severed, toggling settingsOpen no longer does anything to the
+  // popup at all — "click the gear, nothing happens," permanently, since
+  // it only takes one such close (outside click, Escape, a focus-grab
+  // clear) to break it. Defining close() here — matching the contract
+  // PopupCard's `owner` expects — keeps the binding intact by routing every
+  // close through settingsOpen instead.
+  function close() {
+    root.closeSettings()
+  }
+
   function toggleSettings() {
     if (root.settingsOpen) root.closeSettings()
     else root.openSettings()
