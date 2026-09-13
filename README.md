@@ -9,6 +9,8 @@ A gear icon at the end of the widget opens a settings popup for configuring
 everything below — no manual `shell.json` editing needed for day-to-day
 changes.
 
+![Two monitors, each showing only its own pinned workspace numbers in its own color, and the settings popup used to configure them](preview.png)
+
 ## Using the settings popup
 
 Click the gear icon next to the workspace numbers. Each row configures one
