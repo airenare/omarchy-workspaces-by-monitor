@@ -225,6 +225,14 @@ BarWidget {
 
   function closeSettings() {
     root.settingsOpen = false
+    // Belt-and-suspenders: force-release the bar's "this widget has an open
+    // panel" tracking directly, independent of whatever state PopupCard's
+    // own onOpenChanged handler ends up in after a compositor-driven
+    // dismiss (see settingsPopup.onVisibleChanged below). Redundant on a
+    // normal close; harmless either way.
+    if (root.bar && root.bar.activePopout === root && root.bar.releasePopout) {
+      root.bar.releasePopout(root)
+    }
   }
 
   // PopupCard's own close() falls back to imperatively setting its *own*
@@ -472,19 +480,23 @@ BarWidget {
     // PanelWindow property and doesn't exist on PopupWindow at all — the
     // equivalent here is `grabFocus`.
     grabFocus: true
-    // Tried triggerMode: "hover" here to dodge a suspected conflict between
-    // grabFocus and PopupCard's default HyprlandFocusGrab (used for
-    // click-outside-to-dismiss) — but "hover" also means nothing closes
-    // settingsOpen when the compositor dismisses the popup surface from an
-    // outside click on its own. The popup visually vanishes, but our
-    // settingsOpen stays true and the bar's activePopout is never released
-    // (PopupCard.onOpenChanged only fires on an actual `open` change), so
-    // the open-panel underline stuck lit until a further gear click finally
-    // flipped settingsOpen to match reality. Back to the default "click"
-    // trigger, now that the real bug — PopupCard falling back to setting
-    // its own `open` directly when `owner` had no close() — is fixed
-    // above; that binding-severing was very plausibly the actual cause of
-    // the original "gear opens nothing," not a grabFocus conflict.
+    // grabFocus and PopupCard's default "click" trigger (which runs its own
+    // HyprlandFocusGrab for outside-click-to-dismiss) do conflict — with
+    // triggerMode left at its default, the gear icon opened nothing at all
+    // (confirmed by testing both ways). "hover" skips that grab, and the
+    // popup opens correctly.
+    //
+    // Trade-off: a real keyboard-focus-grabbing popup (grabFocus: true)
+    // still gets dismissed by the compositor on an outside click regardless
+    // of triggerMode — that's baked into what requesting real keyboard
+    // focus means here, not something HyprlandFocusGrab controls. In
+    // "hover" mode nothing tells our settingsOpen that happened, so the
+    // popup visually vanishes while settingsOpen stays true and the bar's
+    // open-panel underline never releases — hence onVisibleChanged below,
+    // syncing settingsOpen back whenever the popup's actual visibility
+    // changes for any reason, not just our own close() calls.
+    triggerMode: "hover"
+    onVisibleChanged: if (!settingsPopup.visible) root.closeSettings()
     contentWidth: settingsPopup.fittedContentWidth(Style.space(360))
     contentHeight: settingsPopup.fittedContentHeight(Math.min(settingsColumn.implicitHeight, Style.space(420)))
 
