@@ -446,7 +446,13 @@ BarWidget {
     anchors.top: root.vertical ? grid.bottom : undefined
     anchors.right: root.vertical ? undefined : parent.right
     anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
-    tooltipText: "Configure workspace groups"
+    // Tooltip suppressed because the settings popup is the detail view —
+    // same reasoning as the weather widget's icon button. A tooltip here
+    // is a separate floating overlay anchored to this same button, and it
+    // was lingering/overlapping the popup opening and closing right next
+    // to it (visible as a thin stray line, and requiring an extra click
+    // to fully dismiss).
+    tooltipText: ""
     onPressed: function() { root.toggleSettings() }
   }
 
