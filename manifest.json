@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "air.workspaces",
+  "name": "Workspaces by Monitor",
+  "version": "1.3.0",
+  "author": "air",
+  "description": "Workspace number indicators, grouped and colored per monitor — configurable from a gear icon on the bar",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Workspaces.qml"
+  },
+  "barWidget": {
+    "displayName": "Workspaces by Monitor",
+    "description": "Workspace number indicators, grouped and colored per monitor",
+    "category": "Compositor",
+    "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.workspaces"
+  }
+}
