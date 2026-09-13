@@ -472,16 +472,19 @@ BarWidget {
     // PanelWindow property and doesn't exist on PopupWindow at all — the
     // equivalent here is `grabFocus`.
     grabFocus: true
-    // PopupCard's default triggerMode ("click") runs a HyprlandFocusGrab —
-    // a *different*, Hyprland-specific input grab used only for outside-
-    // click-to-dismiss — on this same window at the same time as the
-    // grabFocus request above. Two competing focus/input grabs on one
-    // surface is exactly the kind of thing that can silently fail to map
-    // the window at the compositor level (no QML error, the popup just
-    // never visibly opens). "hover" skips that second grab entirely; we
-    // lose click-outside-to-dismiss, but Save/Cancel/the gear icon itself
-    // still open and close it fine.
-    triggerMode: "hover"
+    // Tried triggerMode: "hover" here to dodge a suspected conflict between
+    // grabFocus and PopupCard's default HyprlandFocusGrab (used for
+    // click-outside-to-dismiss) — but "hover" also means nothing closes
+    // settingsOpen when the compositor dismisses the popup surface from an
+    // outside click on its own. The popup visually vanishes, but our
+    // settingsOpen stays true and the bar's activePopout is never released
+    // (PopupCard.onOpenChanged only fires on an actual `open` change), so
+    // the open-panel underline stuck lit until a further gear click finally
+    // flipped settingsOpen to match reality. Back to the default "click"
+    // trigger, now that the real bug — PopupCard falling back to setting
+    // its own `open` directly when `owner` had no close() — is fixed
+    // above; that binding-severing was very plausibly the actual cause of
+    // the original "gear opens nothing," not a grabFocus conflict.
     contentWidth: settingsPopup.fittedContentWidth(Style.space(360))
     contentHeight: settingsPopup.fittedContentHeight(Math.min(settingsColumn.implicitHeight, Style.space(420)))
 

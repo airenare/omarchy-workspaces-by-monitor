@@ -28,11 +28,8 @@ monitor:
 **Add monitor** appends a new row, **Save** writes the groups to this
 widget's `shell.json` layout entry, regenerates the matching
 `hl.workspace_rule()` pins in `~/.config/hypr/monitors.lua` (see below) and
-reloads Hyprland, then closes the popup. **Cancel** closes without saving
-either. Clicking outside the popup does *not* close it (the popup needs
-real keyboard focus for typing, which conflicts with the click-outside-to-
-dismiss mechanism other bar popups use) — close it with Save, Cancel, or
-the gear icon itself.
+reloads Hyprland, then closes the popup. **Cancel**, the gear icon, or
+clicking outside the popup all close it without saving.
 
 ### Bar display vs. actual workspace pinning
 
