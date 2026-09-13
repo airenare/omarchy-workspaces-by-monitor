@@ -443,7 +443,7 @@ BarWidget {
     bar: root.bar
     text: "\uf013"
     anchors.left: root.vertical ? parent.left : undefined
-    anchors.top: root.vertical ? grid.bottom : parent.top
+    anchors.top: root.vertical ? grid.bottom : undefined
     anchors.right: root.vertical ? undefined : parent.right
     anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
     tooltipText: "Configure workspace groups"
@@ -466,6 +466,16 @@ BarWidget {
     // PanelWindow property and doesn't exist on PopupWindow at all — the
     // equivalent here is `grabFocus`.
     grabFocus: true
+    // PopupCard's default triggerMode ("click") runs a HyprlandFocusGrab —
+    // a *different*, Hyprland-specific input grab used only for outside-
+    // click-to-dismiss — on this same window at the same time as the
+    // grabFocus request above. Two competing focus/input grabs on one
+    // surface is exactly the kind of thing that can silently fail to map
+    // the window at the compositor level (no QML error, the popup just
+    // never visibly opens). "hover" skips that second grab entirely; we
+    // lose click-outside-to-dismiss, but Save/Cancel/the gear icon itself
+    // still open and close it fine.
+    triggerMode: "hover"
     contentWidth: settingsPopup.fittedContentWidth(Style.space(360))
     contentHeight: settingsPopup.fittedContentHeight(Math.min(settingsColumn.implicitHeight, Style.space(420)))
 
