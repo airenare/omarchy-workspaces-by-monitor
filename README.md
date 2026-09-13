@@ -31,11 +31,12 @@ widget's `shell.json` layout entry, regenerates the matching
 reloads Hyprland, then closes the popup. **Cancel**, the gear icon, or
 clicking outside the popup all close it without saving.
 
-If the same workspace number ends up assigned to more than one monitor
-(including two `*` rows, which would otherwise both claim the same
-leftovers), the affected Workspaces field(s) get a red outline, a message
-names which workspace numbers conflict, and Save is disabled until it's
-fixed — only one monitor can actually own a given workspace in Hyprland.
+If the same workspace number is assigned more than once — typed twice into
+one field (`1,2,2`), or split across two monitors, including two `*` rows,
+which would otherwise both claim the same leftovers — the affected
+Workspaces field(s) get a red outline, a message names which workspace
+numbers conflict, and Save is disabled until it's fixed. Only one monitor
+can actually own a given workspace in Hyprland.
 
 ### Bar display vs. actual workspace pinning
 

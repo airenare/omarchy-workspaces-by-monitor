@@ -214,6 +214,32 @@ BarWidget {
     return ids
   }
 
+  // Same parsing as parseIdsText, but keeps every occurrence instead of
+  // deduping — so "1,2,2" reports workspace 2 twice, which is exactly what
+  // the duplicate-workspace validation below needs to catch a number typed
+  // twice into one field, not just the same number across two fields.
+  function rawIdOccurrences(text) {
+    var trimmed = String(text || "").trim()
+    if (trimmed === "" || trimmed === "*") return []
+    var ids = []
+    var parts = trimmed.split(",")
+    for (var i = 0; i < parts.length; i++) {
+      var part = parts[i].trim()
+      if (part === "") continue
+      var rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/)
+      if (rangeMatch) {
+        var start = parseInt(rangeMatch[1], 10)
+        var end = parseInt(rangeMatch[2], 10)
+        if (start > end) { var t = start; start = end; end = t }
+        for (var n = start; n <= end; n++) ids.push(n)
+      } else {
+        var num = parseInt(part, 10)
+        if (isFinite(num)) ids.push(num)
+      }
+    }
+    return ids
+  }
+
   function openSettings() {
     editGroupsModel.clear()
     for (var i = 0; i < root.groups.length; i++) {
@@ -310,13 +336,25 @@ BarWidget {
     return snapshot
   }
 
+  // Counts every occurrence of every workspace id across the whole form —
+  // raw (non-deduped) occurrences for explicit rows, so "1,2,2" flags 2 on
+  // its own, plus resolved ids for "*" rows (deduped there, since a
+  // wildcard's resolved set is derived, not literally typed twice). An id
+  // with count > 1 is a duplicate, covering both "typed twice in one field"
+  // and "assigned to two different monitors" the same way.
   readonly property var duplicateWorkspaceIds: {
     root.editGroupsVersion // dependency only
     var snapshot = root.editGroupsSnapshot()
     var counts = {}
-    for (var i = 0; i < snapshot.length; i++) {
-      var ids = root.resolveIdsAgainst(snapshot, snapshot[i])
-      for (var j = 0; j < ids.length; j++) counts[ids[j]] = (counts[ids[j]] || 0) + 1
+    for (var i = 0; i < editGroupsModel.count; i++) {
+      var g = editGroupsModel.get(i)
+      var raw = root.rawIdOccurrences(g.idsText)
+      for (var j = 0; j < raw.length; j++) counts[raw[j]] = (counts[raw[j]] || 0) + 1
+    }
+    for (var k = 0; k < snapshot.length; k++) {
+      if (snapshot[k].ids !== "*") continue
+      var resolved = root.resolveIdsAgainst(snapshot, snapshot[k])
+      for (var m = 0; m < resolved.length; m++) counts[resolved[m]] = (counts[resolved[m]] || 0) + 1
     }
     var dupes = []
     for (var id in counts) if (counts[id] > 1) dupes.push(parseInt(id, 10))
@@ -330,8 +368,9 @@ BarWidget {
     root.editGroupsVersion // dependency only
     if (index < 0 || index >= editGroupsModel.count) return false
     var g = editGroupsModel.get(index)
-    var snapshot = root.editGroupsSnapshot()
-    var ids = root.resolveIdsAgainst(snapshot, { monitor: g.monitor, ids: root.parseIdsText(g.idsText) })
+    var ids = g.idsText.trim() === "*" || g.idsText.trim() === ""
+      ? root.resolveIdsAgainst(root.editGroupsSnapshot(), { monitor: g.monitor, ids: root.parseIdsText(g.idsText) })
+      : root.rawIdOccurrences(g.idsText)
     var dupes = root.duplicateWorkspaceIds
     for (var i = 0; i < ids.length; i++) if (dupes.indexOf(ids[i]) !== -1) return true
     return false
@@ -730,7 +769,8 @@ BarWidget {
           text: (root.duplicateWorkspaceIds.length === 1
             ? "Workspace " + root.duplicateWorkspaceIds[0] + " is"
             : "Workspaces " + root.duplicateWorkspaceIds.join(", ") + " are")
-            + " assigned to more than one monitor. Fix the highlighted field before saving."
+            + " assigned more than once — entered twice in one field, or split across two"
+            + " monitors. Fix the highlighted field(s) before saving."
         }
 
         Row {
