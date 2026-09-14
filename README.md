@@ -40,6 +40,12 @@ Workspaces field(s) get a red outline, a message names which workspace
 numbers conflict, and Save is disabled until it's fixed. Only one monitor
 can actually own a given workspace in Hyprland.
 
+A row whose Monitor isn't currently connected gets a warning mark next to
+the dropdown, and a message below the rows names it — this doesn't block
+Save, since it's often legitimate (an external monitor that's just
+unplugged right now, with its config worth keeping for next time), not
+necessarily a typo or stale entry.
+
 ### Bar display vs. actual workspace pinning
 
 The groups above only ever controlled what this bar widget *shows* — they

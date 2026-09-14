@@ -376,6 +376,39 @@ BarWidget {
     return false
   }
 
+  // ------------------------------------------- disconnected-monitor warning
+  //
+  // A saved monitor name that isn't currently connected is often a real
+  // problem (a typo, or a name left over from before a cable/port change)
+  // but sometimes isn't (an external monitor that's just unplugged right
+  // now, with its config worth keeping for next time) — so this warns
+  // rather than blocking Save the way duplicate workspace ids do.
+  function connectedMonitorNames() {
+    var screens = Quickshell.screens
+    var names = []
+    for (var i = 0; i < screens.length; i++) names.push(screens[i].name)
+    return names
+  }
+
+  function rowMonitorDisconnected(index) {
+    root.editGroupsVersion // dependency only
+    if (index < 0 || index >= editGroupsModel.count) return false
+    var monitor = editGroupsModel.get(index).monitor
+    if (!monitor) return false
+    return root.connectedMonitorNames().indexOf(monitor) === -1
+  }
+
+  readonly property var disconnectedMonitors: {
+    root.editGroupsVersion // dependency only
+    var connected = root.connectedMonitorNames()
+    var names = []
+    for (var i = 0; i < editGroupsModel.count; i++) {
+      var monitor = editGroupsModel.get(i).monitor
+      if (monitor && connected.indexOf(monitor) === -1 && names.indexOf(monitor) === -1) names.push(monitor)
+    }
+    return names
+  }
+
   // ---------------------------------------------------- Hyprland pin sync
   //
   // The groups above only control this bar widget's display — Hyprland's
@@ -671,6 +704,30 @@ BarWidget {
                 }
               }
 
+              // Not a hard error (an external monitor can be legitimately
+              // unplugged right now with its config still worth keeping),
+              // so this warns without blocking Save the way a duplicate
+              // workspace assignment does.
+              Text {
+                id: disconnectedMonitorWarning
+                visible: root.rowMonitorDisconnected(row.index)
+                anchors.verticalCenter: parent.verticalCenter
+                text: "\uf071"
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                color: Color.urgent
+
+                MouseArea {
+                  id: disconnectedWarningMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                }
+
+                ToolTip.visible: disconnectedWarningMouse.containsMouse
+                ToolTip.text: "\"" + row.monitor + "\" isn't currently connected. Its config is kept, but double-check the name if this isn't a temporarily unplugged monitor."
+                ToolTip.delay: 400
+              }
+
               Item {
                 id: idsFieldSlot
                 width: Style.space(100)
@@ -771,6 +828,20 @@ BarWidget {
             : "Workspaces " + root.duplicateWorkspaceIds.join(", ") + " are")
             + " assigned more than once — entered twice in one field, or split across two"
             + " monitors. Fix the highlighted field(s) before saving."
+        }
+
+        Text {
+          visible: root.disconnectedMonitors.length > 0
+          width: parent.width
+          wrapMode: Text.WordWrap
+          color: Color.urgent
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          text: (root.disconnectedMonitors.length === 1
+            ? "\"" + root.disconnectedMonitors[0] + "\" isn't"
+            : "\"" + root.disconnectedMonitors.join("\", \"") + "\" aren't")
+            + " currently connected (see the  marks above). Their config is kept —"
+            + " only worth fixing if that's not a temporarily unplugged monitor."
         }
 
         Row {
