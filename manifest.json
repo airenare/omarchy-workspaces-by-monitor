@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "air.workspaces",
   "name": "Workspaces by Monitor",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "author": "air",
-  "description": "Workspace number indicators, grouped and colored per monitor — configurable from a gear icon on the bar",
+  "description": "Workspace indicators for Omarchy with a choice of schemes (classic global 1-10, or Omarchy per-monitor 1-10) and your own colors — configurable from a gear icon on the bar",
   "kinds": [
     "bar-widget"
   ],
